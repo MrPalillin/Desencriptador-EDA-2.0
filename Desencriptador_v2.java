@@ -3,53 +3,63 @@
  * Created by dancres on 16/11/16
  */
 
+import sun.security.krb5.internal.crypto.Des;
+
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.Arrays;
 
 public class Desencriptador_v2 {
 
     private short contenido;
+    private static Desencriptador_v2 actual;
     private Desencriptador_v2 padre;
     private boolean fin;
-    private ArrayList<Desencriptador_v2> hijos=new ArrayList<Desencriptador_v2>(27);
+    private Desencriptador_v2[] hijo = new Desencriptador_v2[27];
     private Desencriptador_v2 raiz;
 
     /**
-     * Definición de atributos para la creación de los árboles de sufijos
+     * Definici&oacute;n de atributos para la creaci&oacute;n de los &aacute;rboles de sufijos
      *
-     * @param "valor" Contenido de una hoja específica
+     * @param "valor" Contenido de una hoja especifica
      * @param "padre" Antecesor del elemento actual
      * @param "hijos" Descendientes del elemento actual
      * @param "fin"   Indica si termina la rama o no
      * @param "raiz"  Raiz del arbol
      */
-    public Desencriptador_v2() {
+    public Desencriptador_v2(short contenido,Desencriptador_v2[] hijo) {
         this.contenido = contenido;
         this.padre = padre;
-        this.hijos = hijos;
-        this.fin = fin;
-        this.raiz=raiz;
+        this.hijo = hijo;
+        this.raiz = raiz;
     }
 
     public void setContenido() {
         this.contenido = contenido;
     }
 
-    public void setPadre() { this.padre = padre; }
+    public void setPadre() {
+        this.padre = padre;
+    }
 
     public void setFin() {
         this.fin = fin;
     }
 
-    public void setHijos() {
-        this.hijos = hijos;
+    public void setHijo(int i) {
+        this.hijo[i] = hijo[i];
     }
 
-    public void setRaiz(){ this.raiz=raiz; }
+    public void setRaiz() {
+        this.raiz = raiz;
+    }
+
+    public void setActual() {
+        this.actual = actual;
+    }
 
     public short getContenido() {
         return contenido;
@@ -63,13 +73,18 @@ public class Desencriptador_v2 {
         return fin;
     }
 
+
     public Desencriptador_v2 getHijo(int i) {
-        return hijos.get(i);
+        return hijo[i];
     }
 
-    public Desencriptador_v2 getRaiz() { return raiz; }
+    public Desencriptador_v2 getRaiz() {
+        return raiz;
+    }
 
-
+    public Desencriptador_v2 getActual() {
+        return actual;
+    }
 
     public static void main(String[] args) {
 
@@ -84,8 +99,10 @@ public class Desencriptador_v2 {
             int pos = 0;
             File archivo = new File(nombre + ".mbx");
             short[] busq = CadenaANumero(cadena);
-            Desencriptador_v2 EDM = new Desencriptador_v2();
-
+            for (int i = 0; i < busq.length; i++) {
+                System.out.println(busq[i]);
+            }
+            Desencriptador_v2 EDM = new Desencriptador_v2((short)-1,new Desencriptador_v2[27]);
             int[] tmp = new int[(int) archivo.length()];
             short[] datos = new short[(int) archivo.length()];
             FileInputStream sc = new FileInputStream(archivo);
@@ -97,7 +114,7 @@ public class Desencriptador_v2 {
             for (int i = 0; i < 65535; i++) {
                 short[] copia = busq.clone();
                 ofuscar(copia, i);
-                insertar(copia, EDM,i=1);
+                insertar(copia, EDM, copia.length - 1);
             }
             /*for (int j = 0; j < archivo.length(); j++) {
                 if (buscar(EDM, cadena)) {
@@ -142,15 +159,25 @@ public class Desencriptador_v2 {
      * @author dancres
      */
 
-    public static Desencriptador_v2 insertar(short[] copia, Desencriptador_v2 EDM,int i) {
+    public static Desencriptador_v2 insertar(short[] copia, Desencriptador_v2 EDM, int cont) {
+        short[] subcadena=Arrays.copyOfRange(copia,cont,copia.length-1);
         boolean insertado=false;
-        for(int j=copia.length-1;j>=0;j--) {
-            if (EDM.getHijo(j).getContenido()==copia[j]){
-
-                insertar()
+        int j=0;
+        for(int i=subcadena.length-1;i>=0;i--){  //Iteracion de cada sufijo
+            while(insertado==false) {            //Itera mientras no haya un hueco para dicha palabra
+                if (EDM.getHijo(j).contenido==-1) {//Si no hay hijo
+                    EDM.getHijo(j).contenido=copia[i];
+                    insertado=true;
+                }else if(EDM.getHijo(i).contenido==copia[i]){//Si en un hijo existe el mismo caracter
+                    Desencriptador_v2 interno=new Desencriptador_v2((short)-1,new Desencriptador_v2[27]);
+                    insertar(subcadena,interno,subcadena.length-1);
+                }else{//Si no hay coinicdencias se pasa al siguiente hijo
+                    j++;
+                }
             }
+            insertado=false;
+            j=0;
         }
-
         return EDM;
     }
 
