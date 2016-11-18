@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Scanner;
 
@@ -22,13 +23,11 @@ public class Desencriptador_v3 {
         String cadena = in.next();
 
         try {
-            int pos = 0;
             File archivo = new File(nombre + ".mbx");
-            short[] busq = CadenaANumero(cadena);
-            System.out.print(busq2);
+            short[] busq = CadenaANumero(cadena);       //Cadena a buscar en bytes
             int[] tmp = new int[(int) archivo.length()];
             Hashtable<Integer, short[]> EDM = new Hashtable<>();
-            short[] datos = new short[(int) archivo.length()];
+            short[] datos = new short[(int) archivo.length()];  //Datos del fichero
             FileInputStream sc = new FileInputStream(archivo);
             DataInputStream ec = new DataInputStream(sc);
             for (int i = 0; i < archivo.length(); i++) {
@@ -38,18 +37,12 @@ public class Desencriptador_v3 {
             for (int i = 0; i < 65535; i++) {
                 short[] copia = busq.clone();
                 ofuscar(copia, i);
-                //for(int j=0;j<copia.length;j++){
-                //    System.out.print(copia[j]+" ");
-                //}
-                //System.out.println(i);
-                //System.out.println();
-                EDM.putIfAbsent(i, copia);
-                buscar(EDM, archivo,datos);
+                EDM.put(i, copia);
             }
-            for (int j = 0; j < EDM.size(); j++) {
-                /*if (buscar(EDM, archivo,texto)) {
-                    short[] trozo = vec2str(datos, pos - 100, pos + 500, (int) archivo.length());
-                }*/
+            for (int pos = 0; pos < archivo.length() - busq.length+1; pos++) {
+                if (buscar(EDM, datos, pos, busq)) {
+                    //short[] trozo = vec2str(datos, pos - 100, pos + 500, (int) archivo.length());
+                }
             }
         } catch (FileNotFoundException e) {
             System.out.print("Error, no existe el archivo \n");
@@ -60,23 +53,30 @@ public class Desencriptador_v3 {
         }
     }
 
-    private static boolean buscar(Hashtable<Integer, short[]> EDM, File archivo,short[] datos) {
+    /**
+     * Busqueda de la clave en el texto
+     *
+     * @param EDM   Estructura de datos magica
+     * @param datos Array de texto binario
+     * @return booleano que dice si coincide o no
+     */
 
-        for (int i = 0; i < EDM.size(); i++) {
-            for (int j = 0; j < archivo.length(); j++) {
-                if (datos==EDM.get(i)) {
-                    System.out.println("Coincidencia encontrada");
-                    return true;
-                }
+    private static boolean buscar(Hashtable<Integer, short[]> EDM, short[] datos, int pos, short[] busq) {
+        for (int i = 0; i < busq.length; i++) {
+            short[] comparador = Arrays.copyOfRange(datos, pos, pos+busq.length);
+            if (comparador[i] != EDM.get(pos)[i]) {
+                return false;
             }
+            System.out.println(i);
         }
-        return false;
+        System.out.print("Coincidencia");
+        return true;
     }
 
     /**
      * Transformación de vector de short a String(mediante StringBuilder)
      *
-     * @param vec      Vector de datos a tranformar
+     * @param vec      Vector de datos a transformar
      * @param ini      Posicion inicial
      * @param fin      Posicion final
      * @param longitud Longitud de datos
