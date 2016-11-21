@@ -23,6 +23,7 @@ public class Desencriptador_v3 {
         String cadena = in.next();
 
         try {
+            long timer = System.nanoTime();
             File archivo = new File(nombre + ".mbx");
             short[] busq = CadenaANumero(cadena);       //Cadena a buscar en bytes
             int[] tmp = new int[(int) archivo.length()];
@@ -39,11 +40,20 @@ public class Desencriptador_v3 {
                 ofuscar(copia, i);
                 EDM.put(i, copia);
             }
-            for (int pos = 0; pos < archivo.length() - busq.length+1; pos++) {
-                if (buscar(EDM, datos, pos, busq)) {
-                    //short[] trozo = vec2str(datos, pos - 100, pos + 500, (int) archivo.length());
+            for (int pos = 0; pos < datos.length - busq.length; pos++) {
+                if (buscar(datos, EDM, archivo, pos, busq)!=-1) {
+                    long detectado=System.nanoTime();
+                    System.out.print("Posicion nº " + pos+"    ");
+                    System.out.print("Tiempo= ");
+                    System.out.printf("%.2f",(double)(detectado-timer)/1000000000);
+                    System.out.println();
+                    short[] trozo=Arrays.copyOfRange(datos,pos,pos+500);
+                    ofuscar(trozo,pos);
+                    System.out.println(vec2str(trozo,0,500,500));
                 }
             }
+            long fin=System.nanoTime();
+            System.out.println((float)(fin-timer)/1000000000+ " segundos");
         } catch (FileNotFoundException e) {
             System.out.print("Error, no existe el archivo \n");
             System.exit(-1);
@@ -58,18 +68,34 @@ public class Desencriptador_v3 {
      *
      * @param EDM   Estructura de datos magica
      * @param datos Array de texto binario
-     * @return booleano que dice si coincide o no
+     * @return Entero que indica la posicion del texto donde coincide(-1 si no hay coinicidencias)
      */
 
-    private static boolean buscar(Hashtable<Integer, short[]> EDM, short[] datos, int pos, short[] busq) {
-        for (int i = 0; i < busq.length; i++) {
-            short[] comparador = Arrays.copyOfRange(datos, pos, pos+busq.length);
-            if (comparador[i] != EDM.get(pos)[i]) {
+    private static int buscar(short[] datos, Hashtable<Integer, short[]> EDM, File archivo, int pos, short[] busq) {//Por cada subcadena de texto
+        short[] comparador = Arrays.copyOfRange(datos, pos, pos + busq.length);
+        for (int k = 0; k < EDM.size(); k++) {
+            if (comparacion(EDM, comparador, k)) {
+                return pos;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Detecta si la cadena coincide con un elemento de la estructura
+     *
+     * @param EDM        Estructura de datos magica
+     * @param comparador Fragmento
+     * @param k          Elemento de la estructura a analizar
+     * @return Booleano que indica si coinciden los resultados
+     */
+
+    private static boolean comparacion(Hashtable<Integer, short[]> EDM, short[] comparador, int k) {
+        for (int i = 0; i < comparador.length; i++) {
+            if (comparador[i] != EDM.get(k)[i]) {
                 return false;
             }
-            System.out.println(i);
         }
-        System.out.print("Coincidencia");
         return true;
     }
 
@@ -87,7 +113,7 @@ public class Desencriptador_v3 {
     private static String vec2str(short[] vec, int ini, int fin, int longitud) {
         StringBuilder res = new StringBuilder(fin - ini);
         for (int i = ini; i < fin; i++) {
-            res.append((char) (vec[i] == 10 ? 10 : vec[i]));
+            res.append((char) (vec[i] == 13 ? 10 : vec[i]));
         }
         return res.toString();
     }
