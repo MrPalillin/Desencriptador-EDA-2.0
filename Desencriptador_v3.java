@@ -44,12 +44,13 @@ public class Desencriptador_v3 {
                 if (buscar(datos, EDM, archivo, pos, busq)!=-1) {
                     long detectado=System.nanoTime();
                     System.out.print("Posicion nº " + pos+"    ");
+                    System.out.print("Clave nº: "+buscar(datos,EDM,archivo,pos,busq)+"    ");
                     System.out.print("Tiempo= ");
                     System.out.printf("%.2f",(double)(detectado-timer)/1000000000);
                     System.out.println();
                     short[] trozo=Arrays.copyOfRange(datos,pos,pos+500);
-                    ofuscar(trozo,pos);
-                    System.out.println(vec2str(trozo,0,500,500));
+                    ofuscar(trozo,buscar(datos,EDM,archivo,pos,busq));
+                    System.out.println(vec2str(trozo,0,500,500)+"\n\n");
                 }
             }
             long fin=System.nanoTime();
@@ -68,14 +69,14 @@ public class Desencriptador_v3 {
      *
      * @param EDM   Estructura de datos magica
      * @param datos Array de texto binario
-     * @return Entero que indica la posicion del texto donde coincide(-1 si no hay coinicidencias)
+     * @return Entero que indica la clave que esta ofuscada el texto(-1 si no hay coinicidencias)
      */
 
     private static int buscar(short[] datos, Hashtable<Integer, short[]> EDM, File archivo, int pos, short[] busq) {//Por cada subcadena de texto
         short[] comparador = Arrays.copyOfRange(datos, pos, pos + busq.length);
         for (int k = 0; k < EDM.size(); k++) {
-            if (comparacion(EDM, comparador, k)) {
-                return pos;
+            if (comparacion(EDM, comparador, k)!=-1) {
+                return k;
             }
         }
         return -1;
@@ -87,16 +88,16 @@ public class Desencriptador_v3 {
      * @param EDM        Estructura de datos magica
      * @param comparador Fragmento
      * @param k          Elemento de la estructura a analizar
-     * @return Booleano que indica si coinciden los resultados
+     * @return Entero que indica la clave en donde esta ofuscada
      */
 
-    private static boolean comparacion(Hashtable<Integer, short[]> EDM, short[] comparador, int k) {
+    private static int comparacion(Hashtable<Integer, short[]> EDM, short[] comparador, int k) {
         for (int i = 0; i < comparador.length; i++) {
             if (comparador[i] != EDM.get(k)[i]) {
-                return false;
+                return -1;
             }
         }
-        return true;
+        return k;
     }
 
     /**
