@@ -1,89 +1,78 @@
-/**
- * Created by dandevi on 16/11/16.
- * Created by dancres on 16/11/16
+/*
+  Created by dandevi on 18/11/16.
+  Created by dancres on 18/11/16.
  */
-
-import sun.security.krb5.internal.crypto.Des;
 
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Scanner;
 import java.util.Arrays;
+import java.util.Scanner;
 
-public class Desencriptador_v2 {
-
-    private short contenido;
-    private static Desencriptador_v2 actual;
-    private Desencriptador_v2 padre;
-    private boolean fin;
-    private Desencriptador_v2[] hijo = new Desencriptador_v2[27];
-    private Desencriptador_v2 raiz;
-
-    /**
-     * Definici&oacute;n de atributos para la creaci&oacute;n de los &aacute;rboles de sufijos
-     *
-     * @param "valor" Contenido de una hoja especifica
-     * @param "padre" Antecesor del elemento actual
-     * @param "hijos" Descendientes del elemento actual
-     * @param "fin"   Indica si termina la rama o no
-     * @param "raiz"  Raiz del arbol
-     */
-    public Desencriptador_v2(short contenido,Desencriptador_v2[] hijo) {
-        this.contenido = contenido;
-        this.padre = padre;
-        this.hijo = hijo;
-        this.raiz = raiz;
-    }
-
-    public void setContenido() {
-        this.contenido = contenido;
-    }
-
-    public void setPadre() {
-        this.padre = padre;
-    }
-
-    public void setFin() {
-        this.fin = fin;
-    }
-
-    public void setHijo(int i) {
-        this.hijo[i] = hijo[i];
-    }
-
-    public void setRaiz() {
-        this.raiz = raiz;
-    }
-
-    public void setActual() {
-        this.actual = actual;
-    }
-
-    public short getContenido() {
-        return contenido;
-    }
-
-    public Desencriptador_v2 getPadre() {
-        return padre;
-    }
-
-    public boolean getFin() {
-        return fin;
-    }
+public class Desencriptador_v6 {
 
 
-    public Desencriptador_v2 getHijo(int i) {
-        return hijo[i];
-    }
+    public static class TablaHash{
 
-    public Desencriptador_v2 getRaiz() {
-        return raiz;
-    }
+        private class Nodo {
 
-    public Desencriptador_v2 getActual() {
-        return actual;
+            int clave;
+            short[] valor;
+            Nodo sig;
+
+            Nodo(int clave,short[] valor,Nodo sig) {
+                this.clave = clave;
+                this.valor = valor;
+                this.sig = sig;
+            }
+        }
+
+        int tam;
+        int elem;
+        double carga;
+        Nodo[] tabla;
+
+        public TablaHash(int tam,double carga){
+            this.tam=tam;
+            this.carga=carga;
+            tabla=new Nodo[tam];
+            for(int i=0;i<tam;i++) elem=0;
+        }
+
+        public int funcionHash(int clave){
+            return (clave & 0x7fffffff)%tam;
+        }
+
+        public void reestructurar(){
+            Nodo[] tmp = tabla;
+            elem = 0;
+            tam = 2 * tam;
+            tabla = new Nodo[tam];
+            for (int i = 0; i < tam; i++) tabla[i] = null;
+            for (int i = 0; i < tmp.length; i++) {
+                Nodo nodo = tmp[i];
+                while (nodo != null) {
+                    ins(nodo.clave, nodo.valor);
+                    nodo = nodo.sig;
+                }
+            }
+        }
+
+        public short[] getValor(int clave){
+            Nodo p = tabla[funcionHash(clave)];
+            while (p != null && p.clave!=clave) p = p.sig;
+            return (p == null) ? null : p.valor;
+        }
+
+        public void ins(int clave,short[] valor){
+            elem++;
+            if((1.0*elem)/tam>carga) reestructurar();
+            int i=funcionHash(clave);
+            tabla[i]=new Nodo(clave,valor,tabla[i]);
+        }
+
     }
 
     public static void main(String[] args) {
@@ -96,91 +85,106 @@ public class Desencriptador_v2 {
         String cadena = in.next();
 
         try {
-            int pos = 0;
+            int k;
+            TablaHash EDM;
             File archivo = new File(nombre + ".mbx");
-            short[] busq = CadenaANumero(cadena);
-            for (int i = 0; i < busq.length; i++) {
-                System.out.println(busq[i]);
-            }
-            Desencriptador_v2 EDM = new Desencriptador_v2((short)-1,new Desencriptador_v2[27]);
+            short[] busq = CadenaANumero(cadena);       //Cadena a buscar en bytes
             int[] tmp = new int[(int) archivo.length()];
-            short[] datos = new short[(int) archivo.length()];
+            short[] datos = new short[(int) archivo.length()];  //Datos del fichero
+            short[] copia;
             FileInputStream sc = new FileInputStream(archivo);
             DataInputStream ec = new DataInputStream(sc);
             for (int i = 0; i < archivo.length(); i++) {
                 tmp[i] = ec.readUnsignedByte();
                 datos[i] = (short) tmp[i];
             }
-            for (int i = 0; i < 65535; i++) {
-                short[] copia = busq.clone();
-                ofuscar(copia, i);
-                insertar(copia, EDM, copia.length - 1);
-            }
-            /*for (int j = 0; j < archivo.length(); j++) {
-                if (buscar(EDM, cadena)) {
-                    short[] trozo = vec2str(datos, pos - 100, pos + 500, (int) archivo.length());
+            long timer = System.nanoTime();
+
+            EDM = busqueda(busq);
+
+            for (int pos = 0; pos < datos.length - busq.length; pos++) {
+                copia=Arrays.copyOfRange(datos,pos,pos+busq.length);
+                if ((k = comparador(EDM, copia)) != -1) {
+                    long detectado = System.nanoTime();
+                    System.out.print("Posicion nº: " + pos + "    ");
+                    System.out.print("Clave nº: " + k + "    ");
+                    System.out.print("Tiempo: ");
+                    System.out.printf("%.2f", (double) (detectado - timer) / 1000000000);
+                    System.out.println();
+                    short[] trozo = new short[500];
+                    for (int j = 0; j < trozo.length; j++) {
+                        trozo[j] = datos[j + pos-90];
+                    }
+                    ofuscar(trozo,k-90);
+                    System.out.println(vec2str(trozo, 0, 500, 500) + "\n\n");
                 }
-            }*/
-        } catch (IOException e) {
+            }
+            long fin = System.nanoTime();
+            System.out.printf("%.2f",(float)(fin-timer)/1000000000);
+            System.out.println(" segundos");
+        } catch (FileNotFoundException e) {
             System.out.print("Error, no existe el archivo \n");
             System.exit(-1);
+        } catch (IOException e2) {
+            System.out.print("Error en el archivo \n");
+            System.exit(-2);
         }
-
     }
 
-    /*public static boolean buscar(ArrayList<Short> EDM, String cadena) {
+    /**
+     * Compara el trozo de texto con la estructura tabla hash
+     *
+     * @param EDM  Estructura de datos mágica
+     * @param copia Trozo de texto
+     * @return Devuelve la clave que tiene la coincidencia de la cadena con la tabla(-1 si no la encuentra)
+     */
 
-    }*/
+    private static int comparador(TablaHash EDM, short[] copia) {
+        for (int i = 0; i < EDM.elem; i++) {
+            short[] comparacion = EDM.getValor(i);
+            if (Arrays.equals(copia,comparacion)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Realiza la insercion de elementos en la tabla hash
+     *
+     * @param busq Cadena de texto a ofuscar
+     * @return Tabla hash con las diferente versiones de la cadena(colisiones resueltas)
+     */
+
+    private static TablaHash busqueda(short[] busq) {
+        TablaHash copiaTabla = new TablaHash(15003,0.75);
+        short[] copia;
+        for (int i = 0; i < 65535; i++) {
+            copia = busq.clone();
+            ofuscar(copia, i);
+            copiaTabla.ins(i, copia);
+        }
+        return copiaTabla;
+    }
 
     /**
      * Transformación de vector de short a String(mediante StringBuilder)
      *
-     * @param vec      Vector de datos a tranformar
+     * @param vec      Vector de datos a transformar
      * @param ini      Posicion inicial
      * @param fin      Posicion final
      * @param longitud Longitud de datos
      * @return Trozo de texto en formato de caracteres
+     * @author Cesar Vaca Rodriguez
      */
 
-    static String vec2str(short[] vec, int ini, int fin, int longitud) { // Funcion que convierte un vector de short en un String(creada por el profesor)
+    private static String vec2str(short[] vec, int ini, int fin, int longitud) {
         StringBuilder res = new StringBuilder(fin - ini);
         for (int i = ini; i < fin; i++) {
-            res.append((char) (vec[i] == 10 ? 10 : vec[i]));
+            res.append((char) (vec[i] == 13 ? 10 : vec[i]));
         }
         return res.toString();
     }
-
-    /**
-     * Transforma la cadena a buscar en datos numericos
-     *
-     * @param copia Copia de la cadena de texto
-     * @param EDM   Estructura del arbol de sufijos
-     * @author dandevi
-     * @author dancres
-     */
-
-    public static Desencriptador_v2 insertar(short[] copia, Desencriptador_v2 EDM, int cont) {
-        short[] subcadena=Arrays.copyOfRange(copia,cont,copia.length-1);
-        boolean insertado=false;
-        int j=0;
-        for(int i=subcadena.length-1;i>=0;i--){  //Iteracion de cada sufijo
-            while(insertado==false) {            //Itera mientras no haya un hueco para dicha palabra
-                if (EDM.getHijo(j).contenido==-1) {//Si no hay hijo
-                    EDM.getHijo(j).contenido=copia[i];
-                    insertado=true;
-                }else if(EDM.getHijo(i).contenido==copia[i]){//Si en un hijo existe el mismo caracter
-                    Desencriptador_v2 interno=new Desencriptador_v2((short)-1,new Desencriptador_v2[27]);
-                    insertar(subcadena,interno,subcadena.length-1);
-                }else{//Si no hay coinicdencias se pasa al siguiente hijo
-                    j++;
-                }
-            }
-            insertado=false;
-            j=0;
-        }
-        return EDM;
-    }
-
 
     /**
      * Transforma la cadena en valores numericos de tipo short
@@ -191,7 +195,7 @@ public class Desencriptador_v2 {
      * @author dancres
      */
 
-    public static short[] CadenaANumero(String cadena) {
+    private static short[] CadenaANumero(String cadena) {
         short[] busq2 = new short[cadena.length()];
         for (int i = 0; i < cadena.length(); i++)
             busq2[i] = (short) cadena.charAt(i);
@@ -206,7 +210,7 @@ public class Desencriptador_v2 {
      * @author Cesar Vaca Rodriguez
      */
 
-    public static void ofuscar(short[] copia, int i) {
+    private static void ofuscar(short[] copia, int i) {
 
         int w0, w1, b;
         int[] lista = new int[copia.length];

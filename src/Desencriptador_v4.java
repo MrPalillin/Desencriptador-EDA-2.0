@@ -9,10 +9,73 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Hashtable;
 import java.util.Scanner;
 
-public class Desencriptador_v3 {
+public class Desencriptador_v4 {
+
+    public static class TablaHash<K, V> {
+
+        private class Nodo<K, V> {
+            K clave;
+            V valor;
+            Nodo<K, V> sig;
+
+            Nodo(K clave, V valor, Nodo<K, V> sig) {
+                this.clave = clave;
+                this.valor = valor;
+                this.sig = sig;
+            }
+        }
+
+        int tam;
+        int nelem;
+        double maxL;
+        Nodo<K, V>[] tabla;
+
+        public TablaHash(int tam0, double maxL) {
+            this.maxL = maxL;
+            this.tam = tam0;
+            tabla = new Nodo[tam];
+            for (int i = 0; i < tam; i++) tabla[i] = null;
+            this.nelem = 0;
+        }
+
+        protected int indice(K clave) {
+            int key;
+            key = clave.hashCode() % 65535;
+            return key;
+        }
+
+        public void reestructurar() {
+            Nodo<K, V>[] tmp = tabla;
+            nelem = 0;
+            tam = 2 * tam;
+            tabla = new Nodo[tam];
+            for (int i = 0; i < tam; i++) tabla[i] = null;
+            for (int i = 0; i < tmp.length; i++) {
+                Nodo<K, V> nodo = tmp[i];
+                while (nodo != null) {
+                    ins(nodo.clave, nodo.valor);
+                    nodo = nodo.sig;
+                }
+            }
+        }
+
+        public V getValor(K clave) {
+            int i = indice(clave);
+            Nodo<K, V> p = tabla[i];
+            while (p != null && !p.clave.equals(clave)) p = p.sig;
+            return (p == null) ? null : p.valor;
+        }
+
+        public void ins(K clave, V valor) {
+            nelem++;
+            if ((1.0 * nelem) / tam > maxL) reestructurar();
+            int i = indice(clave);
+            tabla[i] = new Nodo(clave, valor, tabla[i]);
+        }
+    }
+
     public static void main(String[] args) {
 
         Scanner in = new Scanner(System.in);
@@ -24,37 +87,44 @@ public class Desencriptador_v3 {
 
         try {
             long timer = System.nanoTime();
+            TablaHash EDM;
             File archivo = new File(nombre + ".mbx");
             short[] busq = CadenaANumero(cadena);       //Cadena a buscar en bytes
             int[] tmp = new int[(int) archivo.length()];
-            Hashtable<Integer, short[]> EDM = new Hashtable<>();
+            Integer k;
             short[] datos = new short[(int) archivo.length()];  //Datos del fichero
+            short[] copia = new short[busq.length];
             FileInputStream sc = new FileInputStream(archivo);
             DataInputStream ec = new DataInputStream(sc);
             for (int i = 0; i < archivo.length(); i++) {
                 tmp[i] = ec.readUnsignedByte();
                 datos[i] = (short) tmp[i];
             }
-            for (int i = 0; i < 65535; i++) {
-                short[] copia = busq.clone();
-                ofuscar(copia, i);
-                EDM.put(i, copia);
-            }
+
+            EDM = busqueda(busq);
+
             for (int pos = 0; pos < datos.length - busq.length; pos++) {
-                if (buscar(datos, EDM, archivo, pos, busq)!=-1) {
-                    long detectado=System.nanoTime();
-                    System.out.print("Posicion nº " + pos+"    ");
-                    System.out.print("Clave nº: "+buscar(datos,EDM,archivo,pos,busq)+"    ");
-                    System.out.print("Tiempo= ");
-                    System.out.printf("%.2f",(double)(detectado-timer)/1000000000);
+                for (int j = 0; j < busq.length; j++) {
+                    copia[j] = datos[pos + j];
+                }
+                if ((k=(Integer)EDM.getValor(copia)) != null) {
+                    long detectado = System.nanoTime();
+                    System.out.print("Posicion nº: " + pos + "    ");
+                    System.out.print("Clave nº: " + k + "    ");
+                    System.out.print("Tiempo: ");
+                    System.out.printf("%.2f", (double) (detectado - timer) / 1000000000);
                     System.out.println();
-                    short[] trozo=Arrays.copyOfRange(datos,pos,pos+500);
-                    ofuscar(trozo,buscar(datos,EDM,archivo,pos,busq));
-                    System.out.println(vec2str(trozo,0,500,500)+"\n\n");
+                    short[] trozo = new short[500];
+                    for (int j = 0; j < trozo.length; j++) {
+                        trozo[j] = datos[j + pos - 95];
+                    }
+                    ofuscar(trozo,k-95);
+                    System.out.println(vec2str(trozo, 0, 500, 500) + "\n\n");
                 }
             }
-            long fin=System.nanoTime();
-            System.out.println((float)(fin-timer)/1000000000+ " segundos");
+            long fin = System.nanoTime();
+            System.out.printf("%.2f",(float)(fin-timer)/1000000000);
+            System.out.println(" segundos");
         } catch (FileNotFoundException e) {
             System.out.print("Error, no existe el archivo \n");
             System.exit(-1);
@@ -65,39 +135,20 @@ public class Desencriptador_v3 {
     }
 
     /**
-     * Busqueda de la clave en el texto
+     * Realiza la insercion de elementos en la tabla hash
      *
-     * @param EDM   Estructura de datos magica
-     * @param datos Array de texto binario
-     * @return Entero que indica la clave que esta ofuscada el texto(-1 si no hay coinicidencias)
+     * @param busq Cadena de texto a ofuscar
+     * @return Tabla hash con las diferente versiones de la cadena(colisiones resueltas)
      */
 
-    private static int buscar(short[] datos, Hashtable<Integer, short[]> EDM, File archivo, int pos, short[] busq) {//Por cada subcadena de texto
-        short[] comparador = Arrays.copyOfRange(datos, pos, pos + busq.length);
-        for (int k = 0; k < EDM.size(); k++) {
-            if (comparacion(EDM, comparador, k)!=-1) {
-                return k;
-            }
+    private static TablaHash busqueda(short[] busq) {
+        TablaHash copiaTabla = new TablaHash<>(65536,1);
+        for (int i = 0; i < 65535; i++) {
+            short[] copia = busq.clone();
+            ofuscar(copia, i);
+            copiaTabla.ins(copia, i);
         }
-        return -1;
-    }
-
-    /**
-     * Detecta si la cadena coincide con un elemento de la estructura
-     *
-     * @param EDM        Estructura de datos magica
-     * @param comparador Fragmento
-     * @param k          Elemento de la estructura a analizar
-     * @return Entero que indica la clave en donde esta ofuscada
-     */
-
-    private static int comparacion(Hashtable<Integer, short[]> EDM, short[] comparador, int k) {
-        for (int i = 0; i < comparador.length; i++) {
-            if (comparador[i] != EDM.get(k)[i]) {
-                return -1;
-            }
-        }
-        return k;
+        return copiaTabla;
     }
 
     /**
